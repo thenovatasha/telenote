@@ -2,18 +2,30 @@ import fs from "fs/promises";
 // import fss from "fs"; // only needed to check if directory exists
 import path from "node:path";
 import telenoteConfig from "./telenote.config.js";
-import process from "process";
+import process, { exit } from "process";
+
+/** Go through each of the file, and extract all the lines that contain valid
+    tags. Also accumulate all the content without the tags. Return
+    {
+        {filename: array of filtered file content},
+        {tagname: array of tag lines}
+    }
+ */
 export default async function parseFiles(files) {
     let fileContentDict = {};
     let tagLines = [];
+
     for (let file of files) {
         let filePath = path.resolve(process.cwd(), file);
+        // create a content array for this file
         fileContentDict[filePath] = [];
         const data = await fs.readFile(filePath, {
             encoding: "utf-8",
         });
+
+        // tags can only appear at the start of a line
+        // hence, check each line of the file and separate out tags
         let fileContent = data.split("\n");
-        // check each line of the file and separate out tags
         fileContent.forEach((line) => {
             if (isTag(line)) {
                 tagLines.push(line);
@@ -22,10 +34,12 @@ export default async function parseFiles(files) {
             }
         });
     }
-    // console.log(fileContentDict);
     return { fileContentDict, tagLines };
 }
 
+/** Go through each line, compare with config file and check if 
+    the line contains a tag.
+    Return true when line contains a valid tag, false otherwise */
 function isTag(line) {
     const words = line.split(" ");
     if (words[0][0] === "#") {
@@ -37,6 +51,7 @@ function isTag(line) {
     return false;
 }
 
+/** Check if the file exists and handle any errors */
 async function pathExists(filePath) {
     try {
         await fs.access(filePath);
@@ -46,22 +61,29 @@ async function pathExists(filePath) {
     }
 }
 
+/** Read a file path, if path does not exist, 
+    ensure a the path exists by creating one */
 async function createFileWithPath(filePath) {
     // assumption: file does not exist
     if (!(await pathExists(filePath))) {
         await fs.mkdir(filePath, { recursive: true });
     }
 }
+
+/** Wrap the fs.writeFile by with error handling */
 export async function overwriteFile(filePath, content) {
     try {
         await fs.writeFile(filePath, content);
     } catch (e) {
-        console.error(e);
+        exit(1);
     }
 }
+
+/** Append the tag contents of each file to
+    the directory and file specified (in the config file) for that tag */
 export async function appendToFile(tagDict, keywordsDict) {
     for (let tag in tagDict) {
-        createFileWithPath(keywordsDict[tag].directory);
+        await createFileWithPath(keywordsDict[tag].directory);
         var content = tagDict[tag].join("\n");
         let fullPath =
             path.resolve(
@@ -69,11 +91,24 @@ export async function appendToFile(tagDict, keywordsDict) {
                 keywordsDict[tag].directory,
                 keywordsDict[tag].filename
             ) + ".md";
-        console.log(fullPath);
         try {
             await fs.appendFile(fullPath, "\n" + content);
         } catch (e) {
-            console.error("ERROR appending line", content, e);
+            exit(1);
         }
     }
+}
+
+/** Takes an array of filenames, and an array of files where tags will be 
+    written to and returns a filtered array of filenames */
+export function filterFiles(fileArray, tagsToFilter) {
+    const filesToCheck = fileArray.filter((file) => {
+        const [fileName, extensionName] = file.split(".");
+        if (extensionName === "md" && !tagsToFilter.includes(fileName)) {
+            return true;
+        } else {
+            return false;
+        }
+    });
+    return filesToCheck;
 }
