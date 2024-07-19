@@ -59,3 +59,21 @@ export async function overwriteFile(filePath, content) {
         console.error(e);
     }
 }
+export async function appendToFile(tagDict, keywordsDict) {
+    for (let tag in tagDict) {
+        createFileWithPath(keywordsDict[tag].directory);
+        var content = tagDict[tag].join("\n");
+        let fullPath =
+            path.resolve(
+                process.cwd(),
+                keywordsDict[tag].directory,
+                keywordsDict[tag].filename
+            ) + ".md";
+        console.log(fullPath);
+        try {
+            await fs.appendFile(fullPath, content);
+        } catch (e) {
+            console.error("ERROR appending line", content, e);
+        }
+    }
+}
