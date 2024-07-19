@@ -1,3 +1,6 @@
 export default {
-    keywords: { toNote: { directory: "./", filename: "newfile" } },
+    keywords: {
+        secondary: { directory: "./", filename: "second" },
+        tonote: { directory: "./", filename: "toNote" },
+    },
 };

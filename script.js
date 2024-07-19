@@ -3,85 +3,31 @@ import fs from "fs/promises";
 import path from "node:path";
 import process from "process";
 import telenoteConfig from "./telenote.config.js";
-
-/**
-{
-    keywords: { toNote: { directory: "./", filename: "newfile" } },
-};
-*/
-const keywords = telenoteConfig.keywords;
-console.log(Object.keys(keywords));
-
-console.log();
-// read all the files that end with .md
-console.log(`currently at ${process.cwd()}`);
-console.log();
-console.log();
-console.log();
-console.log();
-
+import parseFiles from "./file.js";
+import { overwriteFile } from "./file.js";
+function filterFiles(fileArray, filesToFilter) {
+    const filesToCheck = fileArray.filter((file) => {
+        const [fileName, extensionName] = file.split(".");
+        if (extensionName === "md" && !filesToFilter.includes(fileName)) {
+            return true;
+        } else {
+            return false;
+        }
+    });
+    return filesToCheck;
+}
 const fileArray = await fs.readdir(process.cwd());
 
-const filesToCheck = fileArray.filter(
-    (fileName) => path.extname(fileName) === ".md"
-);
-async function fileExists(filePath) {
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch (e) {
-        console.log(e);
-        return false;
-    }
-}
-async function parseFiles(files) {
-    console.log("the files are: ", files);
-    for (let file of files) {
-        if (file === "es.md") {
-            continue;
-        }
-        console.log("looking at file : ", file);
-        console.log();
-        console.log();
+const filesToFilter = [];
+Object.values(telenoteConfig.keywords).forEach((tag) => {
+    // filesToFilter.push(tag.fileName);
+    filesToFilter.push(tag.filename);
+});
+const filesToCheck = filterFiles(fileArray, filesToFilter);
 
-        let newContent = [];
-        let filePath = path.resolve(path.resolve(file));
-        const data = await fs.readFile(filePath, {
-            encoding: "utf-8",
-        });
-        let fileContent = data.split("\n");
-        for (let line of fileContent) {
-            if (line[0] === "#") {
-                // might be a keyword
-                if (line[1] === "#") {
-                    // not a keyword
-                    newContent.push(line);
-                    console.log("Skipping", line);
-                    continue;
-                }
-                try {
-                    let pathToWrite = path.resolve("./es.md");
-                    if (await fileExists(pathToWrite)) {
-                        console.log("FILE EXISTS\n");
-                    } else {
-                        console.log("DOES NOT EXISTS");
-                        return;
-                    }
-                    await fs.appendFile(path.resolve("./es.md"), "\n" + line, {
-                        flag: "a+",
-                    });
-                    console.log("SUCCESSFUL", line);
-                } catch (e) {
-                    console.error("ERROR appending line", line, e);
-                }
-            } else {
-                newContent.push(line);
-            }
-        }
-        const fp = await fs.open(filePath, "w");
-        await fp.write(newContent.join("\n"));
-        await fp.close();
-    }
+const { fileContentDict, tagLines } = await parseFiles(filesToCheck);
+for (let file in fileContentDict) {
+    await overwriteFile(file, fileContentDict[file].join("\n"));
 }
 
-parseFiles(filesToCheck);
+await fs.appendFile("./new_file.md", tagLines.join("\n"));

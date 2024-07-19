@@ -1,4 +1,0 @@
-#AHARE
-#BAHARE
-#TUMI
-#KENO
