@@ -71,7 +71,7 @@ export async function appendToFile(tagDict, keywordsDict) {
             ) + ".md";
         console.log(fullPath);
         try {
-            await fs.appendFile(fullPath, content);
+            await fs.appendFile(fullPath, "\n" + content);
         } catch (e) {
             console.error("ERROR appending line", content, e);
         }
